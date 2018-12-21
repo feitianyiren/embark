@@ -20,18 +20,6 @@ class RunCode {
     this.vm = new NodeVM({
       sandbox: this.context,
       require: {
-        // builtin: [
-        //   "console",
-        //   "exports",
-        //   "module",
-        //   "__filename",
-        //   "__dirname",
-        //   "process",
-        //   "setTimeout",
-        //   "setInterval",
-        //   "clearTimeout",
-        //   "clearInterval"
-        // ],
         mock: {
           fs:{
             appendFileSync() { return NOT_ALLOWED_ERROR; },
@@ -53,14 +41,23 @@ class RunCode {
             writeJson() { return NOT_ALLOWED_ERROR; }
           }
         },
-        external: true
+        external: [
+          "@babel/runtime-corejs2/helpers/interopRequireDefault",
+          "@babel/runtime-corejs2/core-js/json/stringify",
+          "@babel/runtime-corejs2/core-js/promise",
+          "@babel/runtime-corejs2/core-js/object/assign",
+          "eth-ens-namehash"
+        ]
       }
     });
   }
 
   doEval(code, tolerateError = false) {
     try {
-      return this.vm.run(code, __filename);
+      // TODO: need to determine if this is an expression or needs to return something!
+      const isEvaluation = (code.indexOf('=') > -1 && code.indexOf(';') > -1);
+      code = `module.exports = (() => ${isEvaluation ? '{' : ''}${code}${isEvaluation ? '}' : ''})()`;
+      return this.vm.run(code, code.indexOf('require') > -1 ? __filename : undefined);
     } catch(e) {
       if (!tolerateError) {
         this.logger.error(e.message);
